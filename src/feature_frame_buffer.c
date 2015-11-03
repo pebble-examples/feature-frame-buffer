@@ -152,8 +152,10 @@ static void update_proc_frame_buffer(Layer *layer, GContext *ctx) {
       row_info = gbitmap_get_data_row_info(fb, y);
 #endif
 #ifdef PBL_SDK_3
+    uint16_t min_x = PBL_IF_RECT_ELSE(fb_bounds.origin.x, row_info.min_x);
+    uint16_t max_x = PBL_IF_RECT_ELSE(fb_bounds.size.w, row_info.max_x + 1);
     // Each pixel is one whole byte
-    for(int x = PBL_IF_RECT_ELSE(fb_bounds.origin.x, row_info.min_x); x < PBL_IF_RECT_ELSE(fb_bounds.size.w, row_info.max_x + 1); x++) {
+    for(int x = min_x; x < max_x; x++) {
       memset(PBL_IF_RECT_ELSE(&row[(y * fb_bounds.size.w) + x], row_info.data + x), color_for_gray(x, y, row_gray).argb, 1);
     }
 #else
