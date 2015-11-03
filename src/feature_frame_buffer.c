@@ -133,26 +133,30 @@ static void update_proc_frame_buffer(Layer *layer, GContext *ctx) {
 
   // obtain frame buffer (must be released again using graphics_release_frame_buffer!)
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
+  GRect fb_bounds = gbitmap_get_bounds(fb);
 
   // during the loop, row always points to the byte of the first 8 pixels of the current row
-#ifdef PBL_PLATFORM_BASALT
-  GRect fb_bounds = gbitmap_get_bounds(fb);
+#ifdef PBL_ROUND
+  GBitmapDataRowInfo row_info;
+#else
   uint8_t *row = gbitmap_get_data(fb);
   uint16_t row_bytes = gbitmap_get_bytes_per_row(fb);
-#else
-  GRect fb_bounds = fb->bounds;
-  uint8_t *row = fb->addr;
-  uint16_t row_bytes = fb->row_size_bytes;
-#endif
   row += fb_bounds.origin.y * row_bytes;
+#endif
+  
 
   // For all rows
   for (int16_t y = fb_bounds.origin.y; y < fb_bounds.size.h; y++) {
   const uint8_t row_gray = gray_for_row(y);
-#ifdef PBL_PLATFORM_BASALT
+#ifdef PBL_ROUND
+      row_info = gbitmap_get_data_row_info(fb, y);
+#endif
+#ifdef PBL_SDK_3
+    uint16_t min_x = PBL_IF_RECT_ELSE(fb_bounds.origin.x, row_info.min_x);
+    uint16_t max_x = PBL_IF_RECT_ELSE(fb_bounds.size.w, row_info.max_x + 1);
     // Each pixel is one whole byte
-    for(int x = fb_bounds.origin.x; x < fb_bounds.size.w; x++) {
-      memset(&row[(y * fb_bounds.size.w) + x], color_for_gray(x, y, row_gray).argb, 1);
+    for(int x = min_x; x < max_x; x++) {
+      memset(PBL_IF_RECT_ELSE(&row[(y * fb_bounds.size.w) + x], row_info.data + x), color_for_gray(x, y, row_gray).argb, 1);
     }
 #else
     // as our dither pattern repeats itself after 8 pixels (8x8 dither matrix), we can store the
@@ -196,6 +200,7 @@ static void update_animation(void *data) {
   // smoothly thanks to sin_lookup
   // The magic numbers you see had been determined via trial and error
   static int input_top = TRIG_MAX_ANGLE * 1 / 4;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "TRIG ang.. %d", input_top);
   static int input_bottom = TRIG_MAX_ANGLE * 3 / 4;
   input_top += TRIG_MAX_ANGLE * 7 / 360;
   input_bottom += TRIG_MAX_ANGLE * 3 / 360;
